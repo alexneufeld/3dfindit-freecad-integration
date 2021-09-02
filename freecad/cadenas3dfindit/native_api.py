@@ -79,7 +79,30 @@ class NativeAPI(QtCore.QObject):
       # Open the STEP file.
       stepFile = os.path.join(tmpExtractPath, downloadReadyObj["startFile"])
       # Import the file into the active FreeCAD document
-      ImportGui.insert(stepFile, FreeCAD.ActiveDocument.Name)
+      FCObj = ImportGui.insert(stepFile, FreeCAD.ActiveDocument.Name)
+      # Set some object properties from API data
+      dataStr = downloadReadyObj["mident"]
+      props = dataStr.strip("{}").split("},{")
+      props[0] = "_3dfinditobj=" + props[0]
+      metadata = {x.split("=")[0]: x.split("=")[1] for x in props}
+      for key in metadata.keys():
+        # convert the value to a number if possible
+        try:
+          metadata[key] = int(metadata[key])
+        except ValueError:
+          try:
+            metadata[key] = float(metadata[key])
+          except:
+            pass
+        types = {
+          int: "App::PropertyInteger", 
+          float: "App::PropertyFloat", 
+          str: "App::PropertyString"}
+        FCObj.addProperty(types[type(metadata[key])],key)
+        FCObj.setGroupOfProperty(key,"Meta")
+        setattr(FCObj,key,metadata[key])
+        FCObj.setPropertyStatus(key,"ReadOnly")
+      FreeCAD.ActiveDocument.recompute()
 
       # Fit to view.
       FreeCADGui.SendMsgToActiveView("ViewFit")
